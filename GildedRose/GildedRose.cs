@@ -1,85 +1,89 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-
 
 namespace GildedRose
 {
     public class GildedRose
     {
-    	public static void UpdateQuality(List<Item> items) 
-    	{
-			for (int i = 0; i < items.Count(); i++) 
-			{
-				if ("Aged Brie" != items[i].Name && "Backstage passes to a TAFKAL80ETC concert" != items[i].Name) 
-				{
-					if (items[i].Quality > 0) 
-					{
-						if ("Sulfuras, Hand of Ragnaros" != items[i].Name) 
-						{
-							items[i].Quality = items[i].Quality - 1;
-						}
-					}
-				} 
-				else 
-				{
-					if (items[i].Quality < 50) 
-					{
-						items[i].Quality = items[i].Quality + 1;
+        private static readonly Dictionary<string, IProduct> Product = new Dictionary<string, IProduct>
+            {
+                {"Aged Brie", new Product(new QualityAdjuster(+1))},
+                {"Backstage passes to a TAFKAL80ETC concert", new Product(new BackstageAdjuster())},
+                {"Sulfuras, Hand of Ragnaros", new Sulfuras()},
+                {"Conjured Mana Cake", new Product(new QualityAdjuster(-2))},
+                {"NORMAL ITEM", new Product(new QualityAdjuster(-1))}
+            };
 
-						if ("Backstage passes to a TAFKAL80ETC concert" == items[i].Name) 
-						{
-							if (items[i].SellIn < 11) 
-							{
-								if (items[i].Quality < 50) 
-								{
-									items[i].Quality = items[i].Quality + 1;
-								}
-							}
+        public static void UpdateQuality(List<Item> items)
+        {
+            foreach (var item in items)
+            {
+                Product[item.Name].Update(item);
+            }
+        }
+    }
 
-							if (items[i].SellIn < 6) 
-							{
-								if (items[i].Quality < 50) 
-								{
-									items[i].Quality = items[i].Quality + 1;
-								}
-							}
-						}
-					}
-				}
+    internal interface IProduct
+    {
+        void Update(Item item);
+    }
 
-				if ("Sulfuras, Hand of Ragnaros" != items[i].Name) 
-				{
-					items[i].SellIn = items[i].SellIn - 1;
-				}
+    internal class QualityAdjuster : IAdjuster
+    {
+        private readonly int _adjustment;
 
-				if (items[i].SellIn < 0) 
-				{
-					if ("Aged Brie" != items[i].Name) 
-					{
-						if ("Backstage passes to a TAFKAL80ETC concert" != items[i].Name) 
-						{
-							if (items[i].Quality > 0) 
-							{
-								if ("Sulfuras, Hand of Ragnaros" != items[i].Name) 
-								{
-									items[i].Quality = items[i].Quality - 1;
-								}
-							}
-						} 
-						else 
-						{
-							items[i].Quality = items[i].Quality - items[i].Quality;
-						}
-					} else 
-					{
-						if (items[i].Quality < 50) 
-						{
-							items[i].Quality =items[i].Quality + 1;
-						}
-					}
-				}
-			}
-		}
+        public QualityAdjuster(int adjustment)
+        {
+            _adjustment = adjustment;
+        }
+
+        public int Adjust(Item item)
+        {
+            return (item.SellIn < 0 ? _adjustment * 2 : _adjustment);
+        }
+    }
+
+    internal class Sulfuras : IProduct
+    {
+        public void Update(Item item)
+        {
+        }
+    }
+
+    internal class Product : IProduct
+    {
+        private readonly IAdjuster _qualityAdjuster;
+
+        public Product(IAdjuster qualityAdjuster)
+        {
+            _qualityAdjuster = qualityAdjuster;
+        }
+
+        public void Update(Item item)
+        {
+            item.SellIn = item.SellIn - 1;
+            item.Quality = item.Quality + _qualityAdjuster.Adjust(item);
+            item.Quality = Math.Max(item.Quality, 0);
+            item.Quality = Math.Min(item.Quality, 50);
+        }
+    }
+
+    public class BackstageAdjuster : IAdjuster
+    {
+        public int Adjust(Item item)
+        {
+            if (item.SellIn < 0)
+                return -item.Quality;
+            if (item.SellIn < 5)
+                return +3;
+            if (item.SellIn < 10)
+                return +2;
+            return +1;
+        }
+    }
+
+    public interface IAdjuster
+    {
+        int Adjust(Item item);
     }
 }
